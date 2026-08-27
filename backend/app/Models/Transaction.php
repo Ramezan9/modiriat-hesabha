@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Transaction extends Model
 {
@@ -26,44 +28,31 @@ class Transaction extends Model
         'transaction_date' => 'datetime',
     ];
 
-    public function workspace()
+    public function workspace(): BelongsTo
     {
         return $this->belongsTo(
-            Workspace::class,
-            'workspace_id'
+            Workspace::class
         );
     }
 
-    public function customer()
+    public function customer(): BelongsTo
     {
         return $this->belongsTo(
-            Customer::class,
-            'customer_id'
+            Customer::class
         );
     }
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(
-            User::class,
-            'user_id'
+            User::class
         );
     }
 
-    public function receipts()
+    public function receipts(): HasMany
     {
         return $this->hasMany(
             Receipt::class
         );
-    }
-
-    public function isDeposit(): bool
-    {
-        return $this->type === 'deposit';
-    }
-
-    public function isWithdrawal(): bool
-    {
-        return $this->type === 'withdrawal';
     }
 }
