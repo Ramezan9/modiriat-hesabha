@@ -4,12 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WorkspaceMember extends Model
 {
     use HasFactory;
-
-    protected $table = 'workspace_members';
 
     protected $fillable = [
         'workspace_id',
@@ -18,34 +17,17 @@ class WorkspaceMember extends Model
         'status',
     ];
 
-    public function workspace()
+    public function workspace(): BelongsTo
     {
         return $this->belongsTo(
-            Workspace::class,
-            'workspace_id'
+            Workspace::class
         );
     }
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(
-            User::class,
-            'user_id'
+            User::class
         );
-    }
-
-    public function isManager(): bool
-    {
-        return $this->role === 'manager';
-    }
-
-    public function isEmployee(): bool
-    {
-        return $this->role === 'employee';
-    }
-
-    public function isActive(): bool
-    {
-        return $this->status === 'active';
     }
 }
