@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Customer extends Model
 {
@@ -24,25 +26,17 @@ class Customer extends Model
         'is_active' => 'boolean',
     ];
 
-    public function workspace()
+    public function workspace(): BelongsTo
     {
         return $this->belongsTo(
-            Workspace::class,
-            'workspace_id'
+            Workspace::class
         );
     }
 
-    public function transactions()
+    public function transactions(): HasMany
     {
         return $this->hasMany(
             Transaction::class
-        );
-    }
-
-    public function receipts()
-    {
-        return $this->hasMany(
-            Receipt::class
         );
     }
 }
