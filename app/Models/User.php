@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class User extends Authenticatable
 {
@@ -23,32 +25,35 @@ class User extends Authenticatable
 
     protected $hidden = [
         'password',
-        'remember_token',
         'pin',
+        'remember_token',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'fingerprint_enabled' => 'boolean',
+        'password' => 'hashed',
+    ];
+
+    public function workspaces(): HasMany
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'fingerprint_enabled' => 'boolean',
-        ];
+        return $this->hasMany(
+            WorkspaceMember::class
+        );
     }
 
-    public function workspaceMembers()
+    public function ownedWorkspaces(): HasMany
     {
-        return $this->hasMany(WorkspaceMember::class);
-    }
-
-    public function workspaces()
-    {
-        return $this->belongsToMany(
+        return $this->hasMany(
             Workspace::class,
-            'workspace_members'
-        )->withPivot([
-            'role',
-            'status',
-        ])->withTimestamps();
+            'owner_id'
+        );
+    }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(
+            Transaction::class
+        );
     }
 }
