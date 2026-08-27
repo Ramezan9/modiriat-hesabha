@@ -4,7 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Workspace extends Model
 {
@@ -22,40 +23,26 @@ class Workspace extends Model
         'is_active' => 'boolean',
     ];
 
-    protected static function booted(): void
+    public function owner(): BelongsTo
     {
-        static::creating(function (Workspace $workspace) {
-            if (empty($workspace->invite_code)) {
-                $workspace->invite_code = strtoupper(
-                    Str::random(8)
-                );
-            }
-        });
+        return $this->belongsTo(User::class, 'owner_id');
     }
 
-    public function owner()
-    {
-        return $this->belongsTo(
-            User::class,
-            'owner_id'
-        );
-    }
-
-    public function members()
+    public function members(): HasMany
     {
         return $this->hasMany(
             WorkspaceMember::class
         );
     }
 
-    public function customers()
+    public function customers(): HasMany
     {
         return $this->hasMany(
             Customer::class
         );
     }
 
-    public function transactions()
+    public function transactions(): HasMany
     {
         return $this->hasMany(
             Transaction::class
