@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Receipt extends Model
 {
@@ -21,11 +22,10 @@ class Receipt extends Model
         'file_size' => 'integer',
     ];
 
-    public function transaction()
+    public function transaction(): BelongsTo
     {
         return $this->belongsTo(
-            Transaction::class,
-            'transaction_id'
+            Transaction::class
         );
     }
 }
