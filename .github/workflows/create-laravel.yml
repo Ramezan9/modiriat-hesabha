@@ -1,0 +1,39 @@
+name: Create Laravel Structure
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  create-laravel:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: دریافت فایل‌های مخزن
+        uses: actions/checkout@v4
+
+      - name: نصب PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: ساخت Laravel موقت
+        run: |
+          composer create-project laravel/laravel laravel-temp "^11.0" --no-interaction
+
+      - name: اضافه کردن فایل‌های پایه Laravel
+        run: |
+          cp -rn laravel-temp/. backend/
+
+      - name: ذخیره تغییرات
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add backend
+
+          git diff --cached --quiet || git commit -m "افزودن ساختار پایه Laravel"
+
+          git push
