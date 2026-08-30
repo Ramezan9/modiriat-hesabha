@@ -4,17 +4,36 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\WorkspaceMember;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
 {
+    private function ensureMember(
+        Request $request,
+        int $workspaceId
+    ): WorkspaceMember {
+        return WorkspaceMember::where('workspace_id', $workspaceId)
+            ->where('user_id', $request->user()->id)
+            ->where('status', 'active')
+            ->firstOrFail();
+    }
+
     public function index(Request $request): JsonResponse
     {
-        $customers = Customer::where(
-            'workspace_id',
-            $request->user()->workspace_id
-        )
+        $workspaceId = $request->query('workspace_id');
+
+        if (!$workspaceId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'workspace_id الزامی است.',
+            ], 422);
+        }
+
+        $this->ensureMember($request, (int) $workspaceId);
+
+        $customers = Customer::where('workspace_id', $workspaceId)
             ->latest()
             ->get();
 
@@ -27,13 +46,24 @@ class CustomerController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'workspace_id' => ['required', 'integer'],
+            'workspace_id' => ['required', 'integer', 'exists:workspaces,id'],
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
             'city' => ['nullable', 'string', 'max:100'],
             'profile_photo' => ['nullable', 'string'],
             'is_pinned' => ['nullable', 'boolean'],
         ]);
+
+        $member = $this->ensureMember(
+            $request,
+            (int) $data['workspace_id']
+        );
+
+        abort_unless(
+            $member->role === 'manager',
+            403,
+            'فقط مدیر فضای کاری اجازه اضافه کردن مشتری را دارد.'
+        );
 
         $customer = Customer::create($data);
 
@@ -44,8 +74,15 @@ class CustomerController extends Controller
         ], 201);
     }
 
-    public function show(Customer $customer): JsonResponse
-    {
+    public function show(
+        Request $request,
+        Customer $customer
+    ): JsonResponse {
+        $this->ensureMember(
+            $request,
+            $customer->workspace_id
+        );
+
         $customer->load('transactions');
 
         return response()->json([
@@ -58,6 +95,17 @@ class CustomerController extends Controller
         Request $request,
         Customer $customer
     ): JsonResponse {
+        $member = $this->ensureMember(
+            $request,
+            $customer->workspace_id
+        );
+
+        abort_unless(
+            $member->role === 'manager',
+            403,
+            'فقط مدیر فضای کاری اجازه ویرایش مشتری را دارد.'
+        );
+
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
@@ -76,8 +124,21 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function destroy(Customer $customer): JsonResponse
-    {
+    public function destroy(
+        Request $request,
+        Customer $customer
+    ): JsonResponse {
+        $member = $this->ensureMember(
+            $request,
+            $customer->workspace_id
+        );
+
+        abort_unless(
+            $member->role === 'manager',
+            403,
+            'فقط مدیر فضای کاری اجازه حذف مشتری را دارد.'
+        );
+
         $customer->delete();
 
         return response()->json([
