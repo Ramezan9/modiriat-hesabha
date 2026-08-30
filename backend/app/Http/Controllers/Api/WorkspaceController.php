@@ -11,6 +11,16 @@ use Illuminate\Support\Str;
 
 class WorkspaceController extends Controller
 {
+    private function ensureMember(
+        Request $request,
+        Workspace $workspace
+    ): WorkspaceMember {
+        return WorkspaceMember::where('workspace_id', $workspace->id)
+            ->where('user_id', $request->user()->id)
+            ->where('status', 'active')
+            ->firstOrFail();
+    }
+
     public function index(Request $request): JsonResponse
     {
         $workspaces = Workspace::whereHas('members', function ($query) use ($request) {
@@ -59,6 +69,8 @@ class WorkspaceController extends Controller
         Request $request,
         Workspace $workspace
     ): JsonResponse {
+        $this->ensureMember($request, $workspace);
+
         $workspace->load('members.user');
 
         return response()->json([
@@ -71,6 +83,14 @@ class WorkspaceController extends Controller
         Request $request,
         Workspace $workspace
     ): JsonResponse {
+        $member = $this->ensureMember($request, $workspace);
+
+        abort_unless(
+            $member->role === 'manager',
+            403,
+            'فقط مدیر فضای کاری اجازه ویرایش را دارد.'
+        );
+
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -90,6 +110,14 @@ class WorkspaceController extends Controller
         Request $request,
         Workspace $workspace
     ): JsonResponse {
+        $member = $this->ensureMember($request, $workspace);
+
+        abort_unless(
+            $member->role === 'manager',
+            403,
+            'فقط مدیر فضای کاری اجازه حذف را دارد.'
+        );
+
         $workspace->delete();
 
         return response()->json([
