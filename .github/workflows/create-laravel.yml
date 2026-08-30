@@ -14,26 +14,35 @@ jobs:
       - name: دریافت فایل‌های مخزن
         uses: actions/checkout@v4
 
-      - name: نصب PHP
+      - name: نصب PHP و Composer
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
+          extensions: mbstring, bcmath, pdo, pdo_mysql
+          tools: composer
 
       - name: ساخت Laravel موقت
         run: |
-        composer create-project laravel/laravel laravel-temp "^12.0" --no-interaction
+          composer create-project laravel/laravel:^12.0 laravel-temp --no-interaction --prefer-dist
+
+      - name: آماده‌سازی پوشه Backend
+        run: |
+          mkdir -p backend
 
       - name: اضافه کردن فایل‌های پایه Laravel
         run: |
-          cp -rn laravel-temp/. backend/
+          cp -a laravel-temp/. backend/
 
-      - name: ذخیره تغییرات
+      - name: ذخیره تغییرات در مخزن
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add backend
 
-          git diff --cached --quiet || git commit -m "افزودن ساختار پایه Laravel"
-
-          git push
+          if git diff --cached --quiet; then
+            echo "تغییری برای ذخیره وجود ندارد."
+          else
+            git commit -m "افزودن ساختار پایه Laravel"
+            git push
+          fi
