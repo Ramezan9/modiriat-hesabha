@@ -9,10 +9,25 @@ use Illuminate\Http\Request;
 
 class WorkspaceMemberController extends Controller
 {
+    /**
+     * بررسی عضویت کاربر در Workspace
+     */
+    private function ensureMember(
+        Request $request,
+        int $workspaceId
+    ): WorkspaceMember {
+        return WorkspaceMember::where('workspace_id', $workspaceId)
+            ->where('user_id', $request->user()->id)
+            ->where('status', 'active')
+            ->firstOrFail();
+    }
+
     public function index(
         Request $request,
         int $workspaceId
     ): JsonResponse {
+        $this->ensureMember($request, $workspaceId);
+
         $members = WorkspaceMember::where(
             'workspace_id',
             $workspaceId
@@ -31,8 +46,19 @@ class WorkspaceMemberController extends Controller
         Request $request,
         int $workspaceId
     ): JsonResponse {
+        $currentMember = $this->ensureMember(
+            $request,
+            $workspaceId
+        );
+
+        abort_unless(
+            $currentMember->role === 'manager',
+            403,
+            'فقط مدیر فضای کاری اجازه اضافه کردن عضو را دارد.'
+        );
+
         $data = $request->validate([
-            'user_id' => ['required', 'integer'],
+            'user_id' => ['required', 'integer', 'exists:users,id'],
             'role' => ['required', 'in:manager,employee'],
         ]);
 
@@ -54,6 +80,17 @@ class WorkspaceMemberController extends Controller
         Request $request,
         WorkspaceMember $member
     ): JsonResponse {
+        $currentMember = $this->ensureMember(
+            $request,
+            $member->workspace_id
+        );
+
+        abort_unless(
+            $currentMember->role === 'manager',
+            403,
+            'فقط مدیر فضای کاری اجازه ویرایش عضو را دارد.'
+        );
+
         $data = $request->validate([
             'role' => ['sometimes', 'in:manager,employee'],
             'status' => [
@@ -75,6 +112,17 @@ class WorkspaceMemberController extends Controller
         Request $request,
         WorkspaceMember $member
     ): JsonResponse {
+        $currentMember = $this->ensureMember(
+            $request,
+            $member->workspace_id
+        );
+
+        abort_unless(
+            $currentMember->role === 'manager',
+            403,
+            'فقط مدیر فضای کاری اجازه حذف عضو را دارد.'
+        );
+
         $member->delete();
 
         return response()->json([
