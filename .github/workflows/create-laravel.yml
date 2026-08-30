@@ -21,7 +21,7 @@ jobs:
 
       - name: ساخت Laravel موقت
         run: |
-          composer create-project laravel/laravel laravel-temp "^11.0" --no-interaction
+        composer create-project laravel/laravel laravel-temp "^12.0" --no-interaction
 
       - name: اضافه کردن فایل‌های پایه Laravel
         run: |
