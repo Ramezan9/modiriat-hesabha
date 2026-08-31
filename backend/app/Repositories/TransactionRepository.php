@@ -7,9 +7,13 @@ use Illuminate\Database\Eloquent\Collection;
 
 class TransactionRepository
 {
-    public function findById(int $id): ?Transaction
-    {
-        return Transaction::find($id);
+    public function findById(
+        int $id,
+        int $workspaceId
+    ): ?Transaction {
+        return Transaction::where('id', $id)
+            ->where('workspace_id', $workspaceId)
+            ->first();
     }
 
     public function findForCustomer(
