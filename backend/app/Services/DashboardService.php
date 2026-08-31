@@ -2,18 +2,13 @@
 
 namespace App\Services;
 
-use App\Models\Transaction;
 use App\Models\Customer;
+use App\Models\Transaction;
 
 class DashboardService
 {
     public function getSummary(int $workspaceId): array
     {
-        $transactions = Transaction::where(
-            'workspace_id',
-            $workspaceId
-        )->get();
-
         $currencies = [
             'AFN',
             'TOMAN',
@@ -24,20 +19,20 @@ class DashboardService
         $balances = [];
 
         foreach ($currencies as $currency) {
-            $deposits = $transactions
+            $deposit = Transaction::where('workspace_id', $workspaceId)
                 ->where('currency', $currency)
                 ->where('type', 'deposit')
                 ->sum('amount');
 
-            $withdrawals = $transactions
+            $withdrawal = Transaction::where('workspace_id', $workspaceId)
                 ->where('currency', $currency)
                 ->where('type', 'withdrawal')
                 ->sum('amount');
 
             $balances[$currency] = [
-                'deposit' => $deposits,
-                'withdrawal' => $withdrawals,
-                'balance' => $deposits - $withdrawals,
+                'deposit' => (float) $deposit,
+                'withdrawal' => (float) $withdrawal,
+                'balance' => (float) ($deposit - $withdrawal),
             ];
         }
 
