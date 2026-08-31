@@ -7,9 +7,16 @@ use Illuminate\Database\Eloquent\Collection;
 
 class WorkspaceRepository
 {
-    public function findById(int $id): ?Workspace
-    {
-        return Workspace::find($id);
+    public function findById(
+        int $id,
+        int $userId
+    ): ?Workspace {
+        return Workspace::where('id', $id)
+            ->whereHas('members', function ($query) use ($userId) {
+                $query->where('user_id', $userId)
+                    ->where('status', 'active');
+            })
+            ->first();
     }
 
     public function findForUser(
@@ -31,8 +38,8 @@ class WorkspaceRepository
             $query->where('user_id', $userId)
                 ->where('status', 'active');
         })
-        ->latest()
-        ->get();
+            ->latest()
+            ->get();
     }
 
     public function create(array $data): Workspace
