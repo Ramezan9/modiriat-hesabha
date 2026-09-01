@@ -1,0 +1,35 @@
+name: Install Laravel Sanctum
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install-sanctum:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          tools: composer
+
+      - name: Install Sanctum
+        working-directory: backend
+        run: |
+          composer require laravel/sanctum
+          php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend
+          git commit -m "Install Laravel Sanctum" || echo "No changes to commit"
+          git push
