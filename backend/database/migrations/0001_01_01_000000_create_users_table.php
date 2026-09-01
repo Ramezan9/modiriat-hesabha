@@ -13,11 +13,29 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+
+            // اطلاعات اصلی کاربر
             $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
+            $table->string('username', 50)->unique();
+
+            // اطلاعات تماس
+            $table->string('email')->nullable()->unique();
+            $table->string('phone', 30)->nullable();
+
+            // امنیت
             $table->string('password');
+            $table->string('pin')->nullable();
+
+            // اطلاعات پروفایل
+            $table->string('city')->nullable();
+            $table->string('profile_photo')->nullable();
+
+            // تنظیمات امنیتی
+            $table->boolean('fingerprint_enabled')->default(false);
+
+            $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
+
             $table->timestamps();
         });
 
@@ -42,8 +60,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
     }
 };
