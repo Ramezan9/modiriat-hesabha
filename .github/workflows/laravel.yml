@@ -28,6 +28,10 @@ jobs:
           extensions: mbstring, bcmath, pdo, pdo_sqlite
           tools: composer
 
+      - name: نصب وابستگی‌ها
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+
       - name: آماده‌سازی محیط Laravel
         run: |
           cp .env.example .env
@@ -36,10 +40,6 @@ jobs:
       - name: ساخت دیتابیس SQLite
         run: |
           touch database/database.sqlite
-
-      - name: نصب وابستگی‌ها
-        run: |
-          composer install --no-interaction --prefer-dist --no-progress
 
       - name: اجرای Migrationها
         env:
