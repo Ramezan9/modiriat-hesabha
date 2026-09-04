@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\UserResource;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -53,7 +54,10 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'ثبت‌نام با موفقیت انجام شد.',
-            'data' => $result,
+            'data' => [
+                'user' => new UserResource($result['user']),
+                'token' => $result['token'],
+            ],
         ], 201);
     }
 
@@ -73,7 +77,10 @@ class AuthController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'ورود با موفقیت انجام شد.',
-                'data' => $result,
+                'data' => [
+                    'user' => new UserResource($result['user']),
+                    'token' => $result['token'],
+                ],
             ]);
         } catch (ValidationException $exception) {
             throw $exception;
@@ -105,7 +112,7 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'user' => $request->user(),
+                'user' => new UserResource($request->user()),
             ],
         ]);
     }
