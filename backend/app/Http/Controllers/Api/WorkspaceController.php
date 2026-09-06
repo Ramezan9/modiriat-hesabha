@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\WorkspaceResource;
 use App\Models\Workspace;
 use App\Models\WorkspaceMember;
 use Illuminate\Http\JsonResponse;
@@ -32,7 +33,7 @@ class WorkspaceController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $workspaces,
+            'data' => WorkspaceResource::collection($workspaces),
         ]);
     }
 
@@ -61,7 +62,7 @@ class WorkspaceController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'فضای کاری با موفقیت ایجاد شد.',
-            'data' => $workspace,
+            'data' => new WorkspaceResource($workspace),
         ], 201);
     }
 
@@ -75,7 +76,7 @@ class WorkspaceController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $workspace,
+            'data' => new WorkspaceResource($workspace),
         ]);
     }
 
@@ -102,7 +103,7 @@ class WorkspaceController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'فضای کاری ویرایش شد.',
-            'data' => $workspace->fresh(),
+            'data' => new WorkspaceResource($workspace->fresh()),
         ]);
     }
 
