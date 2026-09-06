@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -13,7 +14,7 @@ class UserController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'user' => $request->user(),
+                'user' => new UserResource($request->user()),
             ],
         ]);
     }
@@ -37,7 +38,7 @@ class UserController extends Controller
             'success' => true,
             'message' => 'اطلاعات کاربر ویرایش شد.',
             'data' => [
-                'user' => $user->fresh(),
+                'user' => new UserResource($user->fresh()),
             ],
         ]);
     }
