@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ReceiptResource;
 use App\Models\Receipt;
 use App\Models\Transaction;
 use App\Models\WorkspaceMember;
@@ -57,7 +58,7 @@ class ReceiptController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $receipts,
+            'data' => ReceiptResource::collection($receipts),
         ]);
     }
 
@@ -98,7 +99,7 @@ class ReceiptController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'فیش با موفقیت ثبت شد.',
-            'data' => $receipt,
+            'data' => new ReceiptResource($receipt),
         ], 201);
     }
 
@@ -115,7 +116,7 @@ class ReceiptController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $receipt,
+            'data' => new ReceiptResource($receipt),
         ]);
     }
 
