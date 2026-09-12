@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\TransactionResource;
 use App\Models\Customer;
 use App\Models\Transaction;
 use App\Models\WorkspaceMember;
@@ -59,7 +60,7 @@ class TransactionController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $transactions,
+            'data' => TransactionResource::collection($transactions),
         ]);
     }
 
@@ -133,7 +134,9 @@ class TransactionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تراکنش با موفقیت ثبت شد.',
-            'data' => $transaction->load('customer'),
+            'data' => new TransactionResource(
+                $transaction->load('customer')
+            ),
         ], 201);
     }
 
@@ -148,9 +151,11 @@ class TransactionController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $transaction->load(
-                'customer',
-                'receipts'
+            'data' => new TransactionResource(
+                $transaction->load(
+                    'customer',
+                    'receipts'
+                )
             ),
         ]);
     }
@@ -197,7 +202,9 @@ class TransactionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تراکنش ویرایش شد.',
-            'data' => $transaction->fresh()->load('customer'),
+            'data' => new TransactionResource(
+                $transaction->fresh()->load('customer')
+            ),
         ]);
     }
 
