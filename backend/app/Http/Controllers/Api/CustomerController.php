@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\WorkspaceMember;
 use Illuminate\Http\JsonResponse;
@@ -39,7 +40,7 @@ class CustomerController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $customers,
+            'data' => CustomerResource::collection($customers),
         ]);
     }
 
@@ -70,7 +71,7 @@ class CustomerController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'مشتری با موفقیت اضافه شد.',
-            'data' => $customer,
+            'data' => new CustomerResource($customer),
         ], 201);
     }
 
@@ -87,7 +88,7 @@ class CustomerController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $customer,
+            'data' => new CustomerResource($customer),
         ]);
     }
 
@@ -120,7 +121,7 @@ class CustomerController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'اطلاعات مشتری ویرایش شد.',
-            'data' => $customer->fresh(),
+            'data' => new CustomerResource($customer->fresh()),
         ]);
     }
 
