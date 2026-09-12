@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\DashboardResource;
 use App\Models\WorkspaceMember;
 use App\Services\DashboardService;
 use Illuminate\Http\JsonResponse;
@@ -51,7 +52,7 @@ class DashboardController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $summary,
+            'data' => new DashboardResource($summary),
         ]);
     }
 }
