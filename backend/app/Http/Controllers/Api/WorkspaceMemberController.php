@@ -23,7 +23,7 @@ class WorkspaceMemberController extends Controller
     }
 
     /**
-     * نمایش اعضای فعال و غیرفعال یک Workspace
+     * نمایش اعضای Workspace
      */
     public function index(
         Request $request,
@@ -75,6 +75,19 @@ class WorkspaceMemberController extends Controller
             ],
         ]);
 
+        $existingMember = WorkspaceMember::where(
+            'workspace_id',
+            $workspaceId
+        )
+            ->where('user_id', $data['user_id'])
+            ->first();
+
+        abort_if(
+            $existingMember !== null,
+            422,
+            'این کاربر قبلاً عضو این فضای کاری است.'
+        );
+
         $member = WorkspaceMember::create([
             'workspace_id' => $workspaceId,
             'user_id' => $data['user_id'],
@@ -118,6 +131,46 @@ class WorkspaceMemberController extends Controller
             ],
         ]);
 
+        /*
+         * مدیر نمی‌تواند خودش را غیرفعال کند.
+         */
+        if (
+            $member->user_id === $request->user()->id
+            && isset($data['status'])
+            && $data['status'] !== 'active'
+        ) {
+            abort(
+                422,
+                'مدیر نمی‌تواند حساب عضویت خودش را غیرفعال کند.'
+            );
+        }
+
+        /*
+         * آخرین مدیر فعال نباید به کارمند تبدیل یا غیرفعال شود.
+         */
+        if (
+            $member->role === 'manager'
+            && $member->status === 'active'
+            && (
+                (isset($data['role']) && $data['role'] === 'employee')
+                || (isset($data['status']) && $data['status'] !== 'active')
+            )
+        ) {
+            $activeManagersCount = WorkspaceMember::where(
+                'workspace_id',
+                $member->workspace_id
+            )
+                ->where('role', 'manager')
+                ->where('status', 'active')
+                ->count();
+
+            abort_if(
+                $activeManagersCount <= 1,
+                422,
+                'آخرین مدیر فعال فضای کاری نمی‌تواند حذف یا به کارمند تبدیل شود.'
+            );
+        }
+
         $member->update($data);
 
         return response()->json([
@@ -144,6 +197,37 @@ class WorkspaceMemberController extends Controller
             403,
             'فقط مدیر فضای کاری اجازه حذف عضو را دارد.'
         );
+
+        /*
+         * مدیر نمی‌تواند عضویت خودش را حذف کند.
+         */
+        abort_if(
+            $member->user_id === $request->user()->id,
+            422,
+            'مدیر نمی‌تواند عضویت خودش را حذف کند.'
+        );
+
+        /*
+         * آخرین مدیر فعال نباید حذف شود.
+         */
+        if (
+            $member->role === 'manager'
+            && $member->status === 'active'
+        ) {
+            $activeManagersCount = WorkspaceMember::where(
+                'workspace_id',
+                $member->workspace_id
+            )
+                ->where('role', 'manager')
+                ->where('status', 'active')
+                ->count();
+
+            abort_if(
+                $activeManagersCount <= 1,
+                422,
+                'آخرین مدیر فعال فضای کاری نمی‌تواند حذف شود.'
+            );
+        }
 
         $member->delete();
 
