@@ -479,4 +479,77 @@ class TransactionTest extends TestCase
             'description' => 'توضیح جدید',
         ]);
     }
+
+    public function test_member_cannot_update_transaction(): void
+    {
+        $owner = User::factory()->create([
+            'username' => 'transactionupdateowner123',
+            'password' => '123456',
+        ]);
+
+        $member = User::factory()->create([
+            'username' => 'transactionupdatemember123',
+            'password' => '123456',
+        ]);
+
+        $workspace = Workspace::create([
+            'name' => 'فضای محدود ویرایش',
+            'description' => 'تست محدودیت ویرایش تراکنش',
+            'owner_id' => $owner->id,
+            'invite_code' => 'TRN11223',
+            'is_active' => true,
+        ]);
+
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $owner->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $member->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $customer = Customer::create([
+            'workspace_id' => $workspace->id,
+            'name' => 'مشتری محدود',
+            'phone' => '09128888888',
+            'city' => 'کابل',
+            'is_pinned' => false,
+            'is_active' => true,
+        ]);
+
+        $transaction = Transaction::create([
+            'workspace_id' => $workspace->id,
+            'customer_id' => $customer->id,
+            'user_id' => $owner->id,
+            'type' => 'deposit',
+            'account_type' => 'receivable',
+            'currency' => 'AFN',
+            'amount' => 70000,
+            'amount_in_words' => 'هفتاد هزار افغانی',
+            'description' => 'اطلاعات اصلی',
+            'transaction_date' => '2026-09-15 17:00:00',
+        ]);
+
+        $token = $member->createToken('test-token')->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->putJson('/api/transactions/' . $transaction->id, [
+                'amount' => 999999,
+                'description' => 'تغییر غیرمجاز',
+            ]);
+
+        $response->assertStatus(403);
+
+        $this->assertDatabaseHas('transactions', [
+            'id' => $transaction->id,
+            'amount' => 70000,
+            'description' => 'اطلاعات اصلی',
+        ]);
+    }
 }
