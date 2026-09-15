@@ -354,4 +354,65 @@ class TransactionTest extends TestCase
             'مشتری جزئیات'
         );
     }
+
+    public function test_non_member_cannot_view_transaction_details(): void
+    {
+        $owner = User::factory()->create([
+            'username' => 'transactiondetailsowner123',
+            'password' => '123456',
+        ]);
+
+        $otherUser = User::factory()->create([
+            'username' => 'transactiondetailsother123',
+            'password' => '123456',
+        ]);
+
+        $workspace = Workspace::create([
+            'name' => 'فضای خصوصی جزئیات',
+            'description' => 'تست امنیت جزئیات تراکنش',
+            'owner_id' => $owner->id,
+            'invite_code' => 'TRN97531',
+            'is_active' => true,
+        ]);
+
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $owner->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+
+        $customer = Customer::create([
+            'workspace_id' => $workspace->id,
+            'name' => 'مشتری خصوصی جزئیات',
+            'phone' => '09126666666',
+            'city' => 'کابل',
+            'is_pinned' => false,
+            'is_active' => true,
+        ]);
+
+        $transaction = Transaction::create([
+            'workspace_id' => $workspace->id,
+            'customer_id' => $customer->id,
+            'user_id' => $owner->id,
+            'type' => 'deposit',
+            'account_type' => 'receivable',
+            'currency' => 'AFN',
+            'amount' => 150000,
+            'amount_in_words' => 'صد و پنجاه هزار افغانی',
+            'description' => 'اطلاعات مالی خصوصی',
+            'transaction_date' => '2026-09-15 15:00:00',
+        ]);
+
+        $token = $otherUser->createToken('test-token')->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->getJson('/api/transactions/' . $transaction->id);
+
+        $response->assertStatus(404);
+
+        $response->assertJsonMissing([
+            'amount' => '150000.00',
+        ]);
+    }
 }
