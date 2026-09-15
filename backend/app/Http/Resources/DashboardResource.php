@@ -14,6 +14,12 @@ class DashboardResource extends JsonResource
 
             'balances' => $this->balances,
 
+            'receivables' => $this->receivables,
+
+            'payables' => $this->payables,
+
+            'withdrawals' => $this->withdrawals,
+
             'recent_transactions' => TransactionResource::collection(
                 $this->recent_transactions
             ),
