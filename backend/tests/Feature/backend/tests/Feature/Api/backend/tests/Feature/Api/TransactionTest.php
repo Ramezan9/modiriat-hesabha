@@ -12,6 +12,8 @@ use Tests\TestCase;
 
 class TransactionTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_manager_can_create_transaction(): void
     {
         $user = User::factory()->create([
@@ -629,7 +631,7 @@ class TransactionTest extends TestCase
         ]);
 
         WorkspaceMember::create([
-            'workspace_id' => $owner->id,
+            'workspace_id' => $workspace->id,
             'user_id' => $owner->id,
             'role' => 'manager',
             'status' => 'active',
