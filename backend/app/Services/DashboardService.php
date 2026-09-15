@@ -19,7 +19,7 @@ class DashboardService
         $balances = [];
         $receivables = [];
         $payables = [];
-        $myWithdrawals = [];
+        $withdrawals = [];
 
         foreach ($currencies as $currency) {
             $deposit = Transaction::where('workspace_id', $workspaceId)
@@ -68,14 +68,6 @@ class DashboardService
                 ->where('type', 'withdrawal')
                 ->sum('amount');
 
-            $myWithdrawal = Transaction::where(
-                'workspace_id',
-                $workspaceId
-            )
-                ->where('currency', $currency)
-                ->where('type', 'withdrawal')
-                ->sum('amount');
-
             $balances[$currency] = [
                 'deposit' => (float) $deposit,
                 'withdrawal' => (float) $withdrawal,
@@ -98,8 +90,8 @@ class DashboardService
                 ),
             ];
 
-            $myWithdrawals[$currency] = [
-                'amount' => (float) $myWithdrawal,
+            $withdrawals[$currency] = [
+                'amount' => (float) $withdrawal,
             ];
         }
 
@@ -115,7 +107,7 @@ class DashboardService
 
             'payables' => $payables,
 
-            'my_withdrawals' => $myWithdrawals,
+            'withdrawals' => $withdrawals,
 
             'recent_transactions' => Transaction::where(
                 'workspace_id',
