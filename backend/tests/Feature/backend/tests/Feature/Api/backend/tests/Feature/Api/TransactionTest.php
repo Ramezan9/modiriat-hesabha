@@ -415,4 +415,68 @@ class TransactionTest extends TestCase
             'amount' => '150000.00',
         ]);
     }
+
+    public function test_manager_can_update_transaction(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'transactionupdateuser123',
+            'password' => '123456',
+        ]);
+
+        $workspace = Workspace::create([
+            'name' => 'فضای ویرایش تراکنش',
+            'description' => 'تست ویرایش تراکنش',
+            'owner_id' => $user->id,
+            'invite_code' => 'TRN86420',
+            'is_active' => true,
+        ]);
+
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $user->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+
+        $customer = Customer::create([
+            'workspace_id' => $workspace->id,
+            'name' => 'مشتری ویرایش',
+            'phone' => '09127777777',
+            'city' => 'کابل',
+            'is_pinned' => false,
+            'is_active' => true,
+        ]);
+
+        $transaction = Transaction::create([
+            'workspace_id' => $workspace->id,
+            'customer_id' => $customer->id,
+            'user_id' => $user->id,
+            'type' => 'deposit',
+            'account_type' => 'receivable',
+            'currency' => 'AFN',
+            'amount' => 60000,
+            'amount_in_words' => 'شصت هزار افغانی',
+            'description' => 'توضیح قبلی',
+            'transaction_date' => '2026-09-15 16:00:00',
+        ]);
+
+        $token = $user->createToken('test-token')->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->putJson('/api/transactions/' . $transaction->id, [
+                'amount' => 85000,
+                'amount_in_words' => 'هشتاد و پنج هزار افغانی',
+                'description' => 'توضیح جدید',
+            ]);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+
+        $this->assertDatabaseHas('transactions', [
+            'id' => $transaction->id,
+            'amount' => 85000,
+            'amount_in_words' => 'هشتاد و پنج هزار افغانی',
+            'description' => 'توضیح جدید',
+        ]);
+    }
 }
