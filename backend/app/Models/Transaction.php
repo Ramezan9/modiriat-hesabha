@@ -16,6 +16,7 @@ class Transaction extends Model
         'customer_id',
         'user_id',
         'type',
+        'account_type',
         'currency',
         'amount',
         'amount_in_words',
