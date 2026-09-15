@@ -75,4 +75,47 @@ class CustomerTest extends TestCase
             'is_pinned' => true,
         ]);
     }
+
+    public function test_non_member_cannot_create_customer(): void
+    {
+        $owner = User::factory()->create([
+            'username' => 'customerowner123',
+            'password' => '123456',
+        ]);
+
+        $otherUser = User::factory()->create([
+            'username' => 'customerother123',
+            'password' => '123456',
+        ]);
+
+        $workspace = Workspace::create([
+            'name' => 'فضای خصوصی مشتری',
+            'description' => 'تست امنیت مشتری',
+            'owner_id' => $owner->id,
+            'invite_code' => 'CUS54321',
+            'is_active' => true,
+        ]);
+
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $owner->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+
+        $token = $otherUser->createToken('test-token')->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->postJson('/api/customers', [
+                'workspace_id' => $workspace->id,
+                'name' => 'مشتری غیرمجاز',
+            ]);
+
+        $response->assertStatus(404);
+
+        $this->assertDatabaseMissing('customers', [
+            'workspace_id' => $workspace->id,
+            'name' => 'مشتری غیرمجاز',
+        ]);
+    }
 }
