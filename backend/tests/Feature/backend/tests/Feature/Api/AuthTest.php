@@ -31,7 +31,6 @@ class AuthTest extends TestCase
             'success',
             'message',
             'data' => [
-                                       
                 'user',
                 'token',
             ],
@@ -42,35 +41,36 @@ class AuthTest extends TestCase
             'email' => 'test@example.com',
         ]);
     }
-}
-public function test_user_can_login(): void
-{
-    $user = User::factory()->create([
-        'username' => 'loginuser123',
-        'password' => '123456',
-    ]);
 
-    $response = $this->postJson('/api/login', [
-        'username' => 'loginuser123',
-        'password' => '123456',
-    ]);
+    public function test_user_can_login(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'loginuser123',
+            'password' => '123456',
+        ]);
 
-    $response->assertStatus(200);
+        $response = $this->postJson('/api/login', [
+            'username' => 'loginuser123',
+            'password' => '123456',
+        ]);
 
-    $response->assertJson([
-        'success' => true,
-    ]);
+        $response->assertStatus(200);
 
-    $response->assertJsonStructure([
-        'success',
-        'message',
-        'data' => [
-            'user',
-            'token',
-        ],
-    ]);
+        $response->assertJson([
+            'success' => true,
+        ]);
 
-    $this->assertNotEmpty(
-        $response->json('data.token')
-    );
+        $response->assertJsonStructure([
+            'success',
+            'message',
+            'data' => [
+                'user',
+                'token',
+            ],
+        ]);
+
+        $this->assertNotEmpty(
+            $response->json('data.token')
+        );
+    }
 }
