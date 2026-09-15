@@ -93,4 +93,62 @@ class TransactionTest extends TestCase
             'amount' => 60000,
         ]);
     }
+
+    public function test_non_member_cannot_create_transaction(): void
+    {
+        $owner = User::factory()->create([
+            'username' => 'transactionowner123',
+            'password' => '123456',
+        ]);
+
+        $otherUser = User::factory()->create([
+            'username' => 'transactionother123',
+            'password' => '123456',
+        ]);
+
+        $workspace = Workspace::create([
+            'name' => 'فضای خصوصی تراکنش',
+            'description' => 'تست امنیت تراکنش',
+            'owner_id' => $owner->id,
+            'invite_code' => 'TRN54321',
+            'is_active' => true,
+        ]);
+
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $owner->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+
+        $customer = Customer::create([
+            'workspace_id' => $workspace->id,
+            'name' => 'مشتری خصوصی',
+            'phone' => '09122222222',
+            'city' => 'کابل',
+            'is_pinned' => false,
+            'is_active' => true,
+        ]);
+
+        $token = $otherUser->createToken('test-token')->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->postJson('/api/transactions', [
+                'workspace_id' => $workspace->id,
+                'customer_id' => $customer->id,
+                'type' => 'deposit',
+                'account_type' => 'receivable',
+                'currency' => 'AFN',
+                'amount' => 50000,
+                'transaction_date' => '2026-09-15 11:00:00',
+            ]);
+
+        $response->assertStatus(404);
+
+        $this->assertDatabaseMissing('transactions', [
+            'workspace_id' => $workspace->id,
+            'customer_id' => $customer->id,
+            'amount' => 50000,
+        ]);
+    }
 }
