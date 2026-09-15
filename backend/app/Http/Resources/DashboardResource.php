@@ -10,18 +10,18 @@ class DashboardResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'customers_count' => $this->customers_count,
+            'customers_count' => $this->resource['customers_count'] ?? 0,
 
-            'balances' => $this->balances,
+            'balances' => $this->resource['balances'] ?? [],
 
-            'receivables' => $this->receivables,
+            'receivables' => $this->resource['receivables'] ?? [],
 
-            'payables' => $this->payables,
+            'payables' => $this->resource['payables'] ?? [],
 
-            'withdrawals' => $this->withdrawals,
+            'withdrawals' => $this->resource['withdrawals'] ?? [],
 
             'recent_transactions' => TransactionResource::collection(
-                $this->recent_transactions
+                $this->resource['recent_transactions'] ?? []
             ),
         ];
     }
