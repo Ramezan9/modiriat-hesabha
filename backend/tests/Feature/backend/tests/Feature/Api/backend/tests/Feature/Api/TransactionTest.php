@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceMember;
+use App\Models\Transaction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -60,10 +61,7 @@ class TransactionTest extends TestCase
             ]);
 
         $response->assertStatus(201);
-
-        $response->assertJson([
-            'success' => true,
-        ]);
+        $response->assertJson(['success' => true]);
 
         $response->assertJsonStructure([
             'success',
@@ -149,6 +147,74 @@ class TransactionTest extends TestCase
             'workspace_id' => $workspace->id,
             'customer_id' => $customer->id,
             'amount' => 50000,
+        ]);
+    }
+
+    public function test_member_can_view_workspace_transactions(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'transactionviewer123',
+            'password' => '123456',
+        ]);
+
+        $workspace = Workspace::create([
+            'name' => 'فضای مشاهده تراکنش',
+            'description' => 'تست لیست تراکنش‌ها',
+            'owner_id' => $user->id,
+            'invite_code' => 'TRN67890',
+            'is_active' => true,
+        ]);
+
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $user->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+
+        $customer = Customer::create([
+            'workspace_id' => $workspace->id,
+            'name' => 'مشتری لیست تراکنش',
+            'phone' => '09123333333',
+            'city' => 'کابل',
+            'is_pinned' => false,
+            'is_active' => true,
+        ]);
+
+        Transaction::create([
+            'workspace_id' => $workspace->id,
+            'customer_id' => $customer->id,
+            'user_id' => $user->id,
+            'type' => 'deposit',
+            'account_type' => 'receivable',
+            'currency' => 'AFN',
+            'amount' => 75000,
+            'amount_in_words' => 'هفتاد و پنج هزار افغانی',
+            'description' => 'تست نمایش تراکنش',
+            'transaction_date' => '2026-09-15 12:00:00',
+        ]);
+
+        $token = $user->createToken('test-token')->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->getJson('/api/transactions?workspace_id=' . $workspace->id);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+
+        $response->assertJsonStructure([
+            'success',
+            'data',
+        ]);
+
+        $response->assertJsonFragment([
+            'customer_id' => $customer->id,
+            'currency' => 'AFN',
+            'account_type' => 'receivable',
+        ]);
+
+        $response->assertJsonFragment([
+            'amount' => '75000.00',
         ]);
     }
 }
