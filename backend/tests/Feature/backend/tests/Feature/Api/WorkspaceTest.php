@@ -3,6 +3,8 @@
 namespace Tests\Feature\Api;
 
 use App\Models\User;
+use App\Models\Workspace;
+use App\Models\WorkspaceMember;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -54,5 +56,40 @@ class WorkspaceTest extends TestCase
             'role' => 'manager',
             'status' => 'active',
         ]);
+    }
+
+    public function test_non_member_cannot_view_workspace(): void
+    {
+        $owner = User::factory()->create([
+            'username' => 'owneruser123',
+            'password' => '123456',
+        ]);
+
+        $otherUser = User::factory()->create([
+            'username' => 'otheruser123',
+            'password' => '123456',
+        ]);
+
+        $workspace = Workspace::create([
+            'name' => 'فضای خصوصی',
+            'description' => 'تست دسترسی',
+            'owner_id' => $owner->id,
+            'invite_code' => 'TEST1234',
+            'is_active' => true,
+        ]);
+
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $owner->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+
+        $token = $otherUser->createToken('test-token')->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->getJson('/api/workspaces/' . $workspace->id);
+
+        $response->assertStatus(404);
     }
 }
