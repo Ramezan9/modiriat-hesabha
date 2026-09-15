@@ -4,11 +4,15 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Repositories\UserRepository;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthService
 {
+    private const PASSWORD_RESET_CODE_EXPIRATION_MINUTES = 10;
+
     public function __construct(
         protected UserRepository $users
     ) {
@@ -178,6 +182,145 @@ class AuthService
         $user->update([
             'fingerprint_enabled' => $enabled,
         ]);
+    }
+
+    /**
+     * ایجاد کد ۶ رقمی بازیابی رمز عبور
+     */
+    public function createPasswordResetCode(
+        string $email
+    ): string {
+        $email = strtolower(trim($email));
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => [
+                    'حسابی با این ایمیل پیدا نشد.'
+                ],
+            ]);
+        }
+
+        $code = (string) random_int(100000, 999999);
+
+        DB::table('password_reset_tokens')->updateOrInsert(
+            [
+                'email' => $email,
+            ],
+            [
+                'token' => Hash::make($code),
+                'created_at' => now(),
+            ]
+        );
+
+        return $code;
+    }
+
+    /**
+     * بررسی کد ۶ رقمی بازیابی
+     */
+    public function verifyPasswordResetCode(
+        string $email,
+        string $code
+    ): bool {
+        $email = strtolower(trim($email));
+
+        if (!preg_match('/^\d{6}$/', $code)) {
+            return false;
+        }
+
+        $reset = DB::table('password_reset_tokens')
+            ->where('email', $email)
+            ->first();
+
+        if (!$reset || !$reset->created_at) {
+            return false;
+        }
+
+        $createdAt = Carbon::parse($reset->created_at);
+
+        if (
+            now()->greaterThan(
+                $createdAt->copy()->addMinutes(
+                    self::PASSWORD_RESET_CODE_EXPIRATION_MINUTES
+                )
+            )
+        ) {
+            DB::table('password_reset_tokens')
+                ->where('email', $email)
+                ->delete();
+
+            return false;
+        }
+
+        return Hash::check(
+            $code,
+            $reset->token
+        );
+    }
+
+    /**
+     * تغییر رمز عبور با کد بازیابی
+     */
+    public function resetPassword(
+        string $email,
+        string $code,
+        string $newPassword
+    ): void {
+        $email = strtolower(trim($email));
+
+        if (
+            !$this->verifyPasswordResetCode(
+                $email,
+                $code
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'code' => [
+                    'کد بازیابی نادرست یا منقضی شده است.'
+                ],
+            ]);
+        }
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => [
+                    'حسابی با این ایمیل پیدا نشد.'
+                ],
+            ]);
+        }
+
+        if (
+            Hash::check(
+                $newPassword,
+                $user->password
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'new_password' => [
+                    'رمز عبور جدید نباید با رمز عبور قبلی یکسان باشد.'
+                ],
+            ]);
+        }
+
+        DB::transaction(function () use (
+            $user,
+            $newPassword,
+            $email
+        ): void {
+            $user->update([
+                'password' => $newPassword,
+            ]);
+
+            DB::table('password_reset_tokens')
+                ->where('email', $email)
+                ->delete();
+
+            $user->tokens()->delete();
+        });
     }
 
     /**
