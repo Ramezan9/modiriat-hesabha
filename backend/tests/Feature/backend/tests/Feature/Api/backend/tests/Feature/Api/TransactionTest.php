@@ -215,65 +215,67 @@ class TransactionTest extends TestCase
 
         $response->assertJsonFragment([
             'amount' => '75000.00',
-       public function test_non_member_cannot_view_workspace_transactions(): void
-{
-    $owner = User::factory()->create([
-        'username' => 'transactionlistowner123',
-        'password' => '123456',
-    ]);
+        ]);
+    }
 
-    $otherUser = User::factory()->create([
-        'username' => 'transactionlistother123',
-        'password' => '123456',
-    ]);
+    public function test_non_member_cannot_view_workspace_transactions(): void
+    {
+        $owner = User::factory()->create([
+            'username' => 'transactionlistowner123',
+            'password' => '123456',
+        ]);
 
-    $workspace = Workspace::create([
-        'name' => 'فضای خصوصی لیست تراکنش',
-        'description' => 'تست امنیت لیست تراکنش‌ها',
-        'owner_id' => $owner->id,
-        'invite_code' => 'TRN24680',
-        'is_active' => true,
-    ]);
+        $otherUser = User::factory()->create([
+            'username' => 'transactionlistother123',
+            'password' => '123456',
+        ]);
 
-    WorkspaceMember::create([
-        'workspace_id' => $workspace->id,
-        'user_id' => $owner->id,
-        'role' => 'manager',
-        'status' => 'active',
-    ]);
+        $workspace = Workspace::create([
+            'name' => 'فضای خصوصی لیست تراکنش',
+            'description' => 'تست امنیت لیست تراکنش‌ها',
+            'owner_id' => $owner->id,
+            'invite_code' => 'TRN24680',
+            'is_active' => true,
+        ]);
 
-    $customer = Customer::create([
-        'workspace_id' => $workspace->id,
-        'name' => 'مشتری خصوصی لیست',
-        'phone' => '09124444444',
-        'city' => 'کابل',
-        'is_pinned' => false,
-        'is_active' => true,
-    ]);
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $owner->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
 
-    Transaction::create([
-        'workspace_id' => $workspace->id,
-        'customer_id' => $customer->id,
-        'user_id' => $owner->id,
-        'type' => 'deposit',
-        'account_type' => 'receivable',
-        'currency' => 'AFN',
-        'amount' => 90000,
-        'amount_in_words' => 'نود هزار افغانی',
-        'description' => 'تراکنش خصوصی',
-        'transaction_date' => '2026-09-15 13:00:00',
-    ]);
+        $customer = Customer::create([
+            'workspace_id' => $workspace->id,
+            'name' => 'مشتری خصوصی لیست',
+            'phone' => '09124444444',
+            'city' => 'کابل',
+            'is_pinned' => false,
+            'is_active' => true,
+        ]);
 
-    $token = $otherUser->createToken('test-token')->plainTextToken;
+        Transaction::create([
+            'workspace_id' => $workspace->id,
+            'customer_id' => $customer->id,
+            'user_id' => $owner->id,
+            'type' => 'deposit',
+            'account_type' => 'receivable',
+            'currency' => 'AFN',
+            'amount' => 90000,
+            'amount_in_words' => 'نود هزار افغانی',
+            'description' => 'تراکنش خصوصی',
+            'transaction_date' => '2026-09-15 13:00:00',
+        ]);
 
-    $response = $this->withToken($token)
-        ->getJson('/api/transactions?workspace_id=' . $workspace->id);
+        $token = $otherUser->createToken('test-token')->plainTextToken;
 
-    $response->assertStatus(404);
+        $response = $this->withToken($token)
+            ->getJson('/api/transactions?workspace_id=' . $workspace->id);
 
-    $response->assertJsonMissing([
-        'amount' => '90000.00',
-    ]);
-}  ]);
+        $response->assertStatus(404);
+
+        $response->assertJsonMissing([
+            'amount' => '90000.00',
+        ]);
     }
 }
