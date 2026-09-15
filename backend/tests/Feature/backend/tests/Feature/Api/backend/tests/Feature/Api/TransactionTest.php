@@ -278,4 +278,80 @@ class TransactionTest extends TestCase
             'amount' => '90000.00',
         ]);
     }
+
+    public function test_member_can_view_transaction_details(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'transactionshowuser123',
+            'password' => '123456',
+        ]);
+
+        $workspace = Workspace::create([
+            'name' => 'فضای جزئیات تراکنش',
+            'description' => 'تست مشاهده جزئیات',
+            'owner_id' => $user->id,
+            'invite_code' => 'TRN13579',
+            'is_active' => true,
+        ]);
+
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $user->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+
+        $customer = Customer::create([
+            'workspace_id' => $workspace->id,
+            'name' => 'مشتری جزئیات',
+            'phone' => '09125555555',
+            'city' => 'کابل',
+            'is_pinned' => false,
+            'is_active' => true,
+        ]);
+
+        $transaction = Transaction::create([
+            'workspace_id' => $workspace->id,
+            'customer_id' => $customer->id,
+            'user_id' => $user->id,
+            'type' => 'deposit',
+            'account_type' => 'receivable',
+            'currency' => 'AFN',
+            'amount' => 120000,
+            'amount_in_words' => 'صد و بیست هزار افغانی',
+            'description' => 'تست جزئیات تراکنش',
+            'transaction_date' => '2026-09-15 14:00:00',
+        ]);
+
+        $token = $user->createToken('test-token')->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->getJson('/api/transactions/' . $transaction->id);
+
+        $response->assertStatus(200);
+
+        $response->assertJson([
+            'success' => true,
+            'data' => [
+                'id' => $transaction->id,
+                'workspace_id' => $workspace->id,
+                'customer_id' => $customer->id,
+                'type' => 'deposit',
+                'account_type' => 'receivable',
+                'currency' => 'AFN',
+                'amount' => '120000.00',
+                'description' => 'تست جزئیات تراکنش',
+            ],
+        ]);
+
+        $response->assertJsonPath(
+            'data.customer.id',
+            $customer->id
+        );
+
+        $response->assertJsonPath(
+            'data.customer.name',
+            'مشتری جزئیات'
+        );
+    }
 }
