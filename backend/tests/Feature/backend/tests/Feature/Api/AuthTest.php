@@ -73,4 +73,29 @@ class AuthTest extends TestCase
             $response->json('data.token')
         );
     }
+
+    public function test_authenticated_user_can_view_me(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'meuser123',
+            'password' => '123456',
+        ]);
+
+        $token = $user->createToken('test-token')->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->getJson('/api/me');
+
+        $response->assertStatus(200);
+
+        $response->assertJson([
+            'success' => true,
+            'data' => [
+                'user' => [
+                    'id' => $user->id,
+                    'username' => 'meuser123',
+                ],
+            ],
+        ]);
+    }
 }
