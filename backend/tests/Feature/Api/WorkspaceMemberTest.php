@@ -371,4 +371,164 @@ class WorkspaceMemberTest extends TestCase
                 'status',
             ]);
     }
+
+    public function test_manager_cannot_delete_themselves(): void
+    {
+        $manager = User::factory()->create();
+
+        $workspace = $this->createWorkspaceWithManager($manager);
+
+        $managerMember = WorkspaceMember::where(
+            'workspace_id',
+            $workspace->id
+        )
+            ->where('user_id', $manager->id)
+            ->firstOrFail();
+
+        Sanctum::actingAs($manager);
+
+        $response = $this->deleteJson(
+            "/api/workspace-members/{$managerMember->id}"
+        );
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'message',
+                'مدیر نمی‌تواند عضویت خودش را حذف کند.'
+            );
+
+        $this->assertDatabaseHas('workspace_members', [
+            'id' => $managerMember->id,
+            'user_id' => $manager->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_last_manager_cannot_be_demoted_or_deactivated(): void
+    {
+        $manager = User::factory()->create();
+
+        $workspace = $this->createWorkspaceWithManager($manager);
+
+        $managerMember = WorkspaceMember::where(
+            'workspace_id',
+            $workspace->id
+        )
+            ->where('user_id', $manager->id)
+            ->firstOrFail();
+
+        Sanctum::actingAs($manager);
+
+        $demoteResponse = $this->putJson(
+            "/api/workspace-members/{$managerMember->id}",
+            [
+                'role' => 'employee',
+            ]
+        );
+
+        $demoteResponse
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'message',
+                'آخرین مدیر فعال فضای کاری نمی‌تواند حذف یا به کارمند تبدیل شود.'
+            );
+
+        $this->assertDatabaseHas('workspace_members', [
+            'id' => $managerMember->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+
+        $deactivateResponse = $this->putJson(
+            "/api/workspace-members/{$managerMember->id}",
+            [
+                'status' => 'inactive',
+            ]
+        );
+
+        $deactivateResponse
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'message',
+                'مدیر نمی‌تواند حساب عضویت خودش را غیرفعال کند.'
+            );
+
+        $this->assertDatabaseHas('workspace_members', [
+            'id' => $managerMember->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_last_active_manager_cannot_be_deleted_by_another_manager(): void
+    {
+        $manager = User::factory()->create();
+        $secondManager = User::factory()->create();
+
+        $workspace = $this->createWorkspaceWithManager($manager);
+
+        $managerMember = WorkspaceMember::where(
+            'workspace_id',
+            $workspace->id
+        )
+            ->where('user_id', $manager->id)
+            ->firstOrFail();
+
+        $this->createMember(
+            $workspace,
+            $secondManager,
+            'manager',
+            'active'
+        );
+
+        Sanctum::actingAs($secondManager);
+
+        $response = $this->deleteJson(
+            "/api/workspace-members/{$managerMember->id}"
+        );
+
+        /*
+         * چون دو مدیر فعال وجود دارند، حذف مدیر اول مجاز است.
+         * سپس مدیر دوم آخرین مدیر باقی‌مانده می‌شود.
+         */
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseMissing('workspace_members', [
+            'id' => $managerMember->id,
+        ]);
+
+        $remainingManager = WorkspaceMember::where(
+            'workspace_id',
+            $workspace->id
+        )
+            ->where('user_id', $secondManager->id)
+            ->firstOrFail();
+
+        $this->assertSame('manager', $remainingManager->role);
+        $this->assertSame('active', $remainingManager->status);
+
+        /*
+         * حالا مدیر باقی‌مانده نمی‌تواند خودش را حذف کند.
+         */
+        $selfDeleteResponse = $this->deleteJson(
+            "/api/workspace-members/{$remainingManager->id}"
+        );
+
+        $selfDeleteResponse
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'message',
+                'مدیر نمی‌تواند عضویت خودش را حذف کند.'
+            );
+
+        $this->assertDatabaseHas('workspace_members', [
+            'id' => $remainingManager->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+    }
 }
