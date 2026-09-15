@@ -16,10 +16,17 @@ class AuthController extends Controller
     ) {
     }
 
+    /**
+     * ثبت‌نام
+     */
     public function register(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
             'username' => [
                 'required',
                 'string',
@@ -61,11 +68,20 @@ class AuthController extends Controller
         ], 201);
     }
 
+    /**
+     * ورود
+     */
     public function login(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'username' => ['required', 'string'],
-            'password' => ['required', 'digits:6'],
+            'username' => [
+                'required',
+                'string',
+            ],
+            'password' => [
+                'required',
+                'digits:6',
+            ],
         ]);
 
         try {
@@ -87,6 +103,66 @@ class AuthController extends Controller
         }
     }
 
+    /**
+     * درخواست کد بازیابی رمز عبور
+     */
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+            ],
+        ]);
+
+        $code = $this->authService->createPasswordResetCode(
+            $data['email']
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'کد بازیابی با موفقیت ایجاد شد.',
+        ]);
+    }
+
+    /**
+     * تغییر رمز عبور با کد بازیابی
+     */
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+            ],
+            'code' => [
+                'required',
+                'digits:6',
+            ],
+            'password' => [
+                'required',
+                'digits:6',
+                'confirmed',
+            ],
+        ]);
+
+        $this->authService->resetPassword(
+            $data['email'],
+            $data['code'],
+            $data['password']
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'رمز عبور با موفقیت تغییر کرد. اکنون می‌توانید وارد حساب شوید.',
+        ]);
+    }
+
+    /**
+     * خروج از دستگاه فعلی
+     */
     public function logout(Request $request): JsonResponse
     {
         $this->authService->logout($request->user());
@@ -97,6 +173,9 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * خروج از تمام دستگاه‌ها
+     */
     public function logoutAll(Request $request): JsonResponse
     {
         $this->authService->logoutAll($request->user());
@@ -107,6 +186,9 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * اطلاعات کاربر فعلی
+     */
     public function me(Request $request): JsonResponse
     {
         return response()->json([
