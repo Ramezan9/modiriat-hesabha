@@ -17,6 +17,9 @@ class DashboardService
         ];
 
         $balances = [];
+        $receivables = [];
+        $payables = [];
+        $myWithdrawals = [];
 
         foreach ($currencies as $currency) {
             $deposit = Transaction::where('workspace_id', $workspaceId)
@@ -29,10 +32,74 @@ class DashboardService
                 ->where('type', 'withdrawal')
                 ->sum('amount');
 
+            $receivableDeposit = Transaction::where(
+                'workspace_id',
+                $workspaceId
+            )
+                ->where('currency', $currency)
+                ->where('account_type', 'receivable')
+                ->where('type', 'deposit')
+                ->sum('amount');
+
+            $receivableWithdrawal = Transaction::where(
+                'workspace_id',
+                $workspaceId
+            )
+                ->where('currency', $currency)
+                ->where('account_type', 'receivable')
+                ->where('type', 'withdrawal')
+                ->sum('amount');
+
+            $payableDeposit = Transaction::where(
+                'workspace_id',
+                $workspaceId
+            )
+                ->where('currency', $currency)
+                ->where('account_type', 'payable')
+                ->where('type', 'deposit')
+                ->sum('amount');
+
+            $payableWithdrawal = Transaction::where(
+                'workspace_id',
+                $workspaceId
+            )
+                ->where('currency', $currency)
+                ->where('account_type', 'payable')
+                ->where('type', 'withdrawal')
+                ->sum('amount');
+
+            $myWithdrawal = Transaction::where(
+                'workspace_id',
+                $workspaceId
+            )
+                ->where('currency', $currency)
+                ->where('type', 'withdrawal')
+                ->sum('amount');
+
             $balances[$currency] = [
                 'deposit' => (float) $deposit,
                 'withdrawal' => (float) $withdrawal,
                 'balance' => (float) ($deposit - $withdrawal),
+            ];
+
+            $receivables[$currency] = [
+                'deposit' => (float) $receivableDeposit,
+                'withdrawal' => (float) $receivableWithdrawal,
+                'balance' => (float) (
+                    $receivableDeposit - $receivableWithdrawal
+                ),
+            ];
+
+            $payables[$currency] = [
+                'deposit' => (float) $payableDeposit,
+                'withdrawal' => (float) $payableWithdrawal,
+                'balance' => (float) (
+                    $payableDeposit - $payableWithdrawal
+                ),
+            ];
+
+            $myWithdrawals[$currency] = [
+                'amount' => (float) $myWithdrawal,
             ];
         }
 
@@ -43,6 +110,12 @@ class DashboardService
             )->count(),
 
             'balances' => $balances,
+
+            'receivables' => $receivables,
+
+            'payables' => $payables,
+
+            'my_withdrawals' => $myWithdrawals,
 
             'recent_transactions' => Transaction::where(
                 'workspace_id',
