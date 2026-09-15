@@ -26,7 +26,10 @@ class TransactionController extends Controller
         Request $request,
         int $workspaceId
     ): WorkspaceMember {
-        $member = $this->ensureMember($request, $workspaceId);
+        $member = $this->ensureMember(
+            $request,
+            $workspaceId
+        );
 
         abort_unless(
             $member->role === 'manager',
@@ -48,7 +51,10 @@ class TransactionController extends Controller
             ], 422);
         }
 
-        $this->ensureMember($request, (int) $workspaceId);
+        $this->ensureMember(
+            $request,
+            (int) $workspaceId
+        );
 
         $transactions = Transaction::where(
             'workspace_id',
@@ -60,7 +66,9 @@ class TransactionController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => TransactionResource::collection($transactions),
+            'data' => TransactionResource::collection(
+                $transactions
+            ),
         ]);
     }
 
@@ -80,6 +88,10 @@ class TransactionController extends Controller
             'type' => [
                 'required',
                 'in:deposit,withdrawal',
+            ],
+            'account_type' => [
+                'required',
+                'in:receivable,payable',
             ],
             'currency' => [
                 'required',
@@ -124,6 +136,7 @@ class TransactionController extends Controller
             'customer_id' => $customer->id,
             'user_id' => $request->user()->id,
             'type' => $data['type'],
+            'account_type' => $data['account_type'],
             'currency' => $data['currency'],
             'amount' => $data['amount'],
             'amount_in_words' => $data['amount_in_words'] ?? null,
@@ -173,6 +186,10 @@ class TransactionController extends Controller
             'type' => [
                 'sometimes',
                 'in:deposit,withdrawal',
+            ],
+            'account_type' => [
+                'sometimes',
+                'in:receivable,payable',
             ],
             'currency' => [
                 'sometimes',
