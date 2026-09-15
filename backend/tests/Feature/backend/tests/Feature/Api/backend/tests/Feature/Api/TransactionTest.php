@@ -12,8 +12,6 @@ use Tests\TestCase;
 
 class TransactionTest extends TestCase
 {
-    use RefreshDatabase;
-
     public function test_manager_can_create_transaction(): void
     {
         $user = User::factory()->create([
@@ -550,6 +548,194 @@ class TransactionTest extends TestCase
             'id' => $transaction->id,
             'amount' => 70000,
             'description' => 'اطلاعات اصلی',
+        ]);
+    }
+
+    public function test_manager_can_delete_transaction(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'transactiondeleteuser123',
+            'password' => '123456',
+        ]);
+
+        $workspace = Workspace::create([
+            'name' => 'فضای حذف تراکنش',
+            'description' => 'تست حذف تراکنش',
+            'owner_id' => $user->id,
+            'invite_code' => 'TRN33445',
+            'is_active' => true,
+        ]);
+
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $user->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+
+        $customer = Customer::create([
+            'workspace_id' => $workspace->id,
+            'name' => 'مشتری حذف',
+            'phone' => '09129999999',
+            'city' => 'کابل',
+            'is_pinned' => false,
+            'is_active' => true,
+        ]);
+
+        $transaction = Transaction::create([
+            'workspace_id' => $workspace->id,
+            'customer_id' => $customer->id,
+            'user_id' => $user->id,
+            'type' => 'deposit',
+            'account_type' => 'receivable',
+            'currency' => 'AFN',
+            'amount' => 50000,
+            'amount_in_words' => 'پنجاه هزار افغانی',
+            'description' => 'تراکنش قابل حذف',
+            'transaction_date' => '2026-09-15 18:00:00',
+        ]);
+
+        $token = $user->createToken('test-token')->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->deleteJson('/api/transactions/' . $transaction->id);
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+
+        $this->assertDatabaseMissing('transactions', [
+            'id' => $transaction->id,
+        ]);
+    }
+
+    public function test_member_cannot_delete_transaction(): void
+    {
+        $owner = User::factory()->create([
+            'username' => 'transactiondeleteowner123',
+            'password' => '123456',
+        ]);
+
+        $member = User::factory()->create([
+            'username' => 'transactiondeletemember123',
+            'password' => '123456',
+        ]);
+
+        $workspace = Workspace::create([
+            'name' => 'فضای محدود حذف',
+            'description' => 'تست محدودیت حذف تراکنش',
+            'owner_id' => $owner->id,
+            'invite_code' => 'TRN55667',
+            'is_active' => true,
+        ]);
+
+        WorkspaceMember::create([
+            'workspace_id' => $owner->id,
+            'user_id' => $owner->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $member->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $customer = Customer::create([
+            'workspace_id' => $workspace->id,
+            'name' => 'مشتری حذف محدود',
+            'phone' => '09120000000',
+            'city' => 'کابل',
+            'is_pinned' => false,
+            'is_active' => true,
+        ]);
+
+        $transaction = Transaction::create([
+            'workspace_id' => $workspace->id,
+            'customer_id' => $customer->id,
+            'user_id' => $owner->id,
+            'type' => 'deposit',
+            'account_type' => 'receivable',
+            'currency' => 'AFN',
+            'amount' => 80000,
+            'amount_in_words' => 'هشتاد هزار افغانی',
+            'description' => 'تراکنش محافظت شده',
+            'transaction_date' => '2026-09-15 19:00:00',
+        ]);
+
+        $token = $member->createToken('test-token')->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->deleteJson('/api/transactions/' . $transaction->id);
+
+        $response->assertStatus(403);
+
+        $this->assertDatabaseHas('transactions', [
+            'id' => $transaction->id,
+            'amount' => 80000,
+        ]);
+    }
+
+    public function test_non_member_cannot_delete_transaction(): void
+    {
+        $owner = User::factory()->create([
+            'username' => 'transactiondeletenonowner123',
+            'password' => '123456',
+        ]);
+
+        $otherUser = User::factory()->create([
+            'username' => 'transactiondeletenonmember123',
+            'password' => '123456',
+        ]);
+
+        $workspace = Workspace::create([
+            'name' => 'فضای خصوصی حذف',
+            'description' => 'تست امنیت حذف تراکنش',
+            'owner_id' => $owner->id,
+            'invite_code' => 'TRN77889',
+            'is_active' => true,
+        ]);
+
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $owner->id,
+            'role' => 'manager',
+            'status' => 'active',
+        ]);
+
+        $customer = Customer::create([
+            'workspace_id' => $workspace->id,
+            'name' => 'مشتری خصوصی حذف',
+            'phone' => '09121112222',
+            'city' => 'کابل',
+            'is_pinned' => false,
+            'is_active' => true,
+        ]);
+
+        $transaction = Transaction::create([
+            'workspace_id' => $workspace->id,
+            'customer_id' => $customer->id,
+            'user_id' => $owner->id,
+            'type' => 'deposit',
+            'account_type' => 'payable',
+            'currency' => 'USD',
+            'amount' => 1000,
+            'amount_in_words' => 'هزار دلار',
+            'description' => 'تراکنش خصوصی',
+            'transaction_date' => '2026-09-15 20:00:00',
+        ]);
+
+        $token = $otherUser->createToken('test-token')->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->deleteJson('/api/transactions/' . $transaction->id);
+
+        $response->assertStatus(404);
+
+        $this->assertDatabaseHas('transactions', [
+            'id' => $transaction->id,
+            'amount' => 1000,
         ]);
     }
 }
