@@ -2,32 +2,24 @@
 
 namespace App\Services;
 
+use App\Mail\PasswordResetCodeMail;
 use App\Models\User;
 use App\Repositories\UserRepository;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class AuthService
 {
     private const PASSWORD_RESET_CODE_EXPIRATION_MINUTES = 10;
 
-    private const PASSWORD_RESET_REQUEST_MAX_ATTEMPTS = 5;
-
-    private const PASSWORD_RESET_VERIFY_MAX_ATTEMPTS = 10;
-
-    private const PASSWORD_RESET_RATE_LIMIT_SECONDS = 600;
-
     public function __construct(
         protected UserRepository $users
     ) {
     }
 
-    /**
-     * ثبت‌نام کاربر
-     */
     public function register(array $data): array
     {
         $user = $this->users->create([
@@ -50,9 +42,6 @@ class AuthService
         ];
     }
 
-    /**
-     * ورود کاربر
-     */
     public function login(
         string $username,
         string $password
@@ -80,9 +69,6 @@ class AuthService
         ];
     }
 
-    /**
-     * بررسی رمز عبور کاربر
-     */
     public function verifyPassword(
         User $user,
         string $password
@@ -93,9 +79,6 @@ class AuthService
         );
     }
 
-    /**
-     * تغییر رمز عبور
-     */
     public function changePassword(
         User $user,
         string $currentPassword,
@@ -132,9 +115,6 @@ class AuthService
         ]);
     }
 
-    /**
-     * تغییر PIN
-     */
     public function changePin(
         User $user,
         string $currentPin,
@@ -179,9 +159,6 @@ class AuthService
         ]);
     }
 
-    /**
-     * فعال یا غیرفعال کردن ورود با اثر انگشت
-     */
     public function setFingerprintEnabled(
         User $user,
         bool $enabled
@@ -191,89 +168,47 @@ class AuthService
         ]);
     }
 
-    /**
-     * ایجاد کد ۶ رقمی بازیابی رمز عبور
-     *
-     * برای جلوگیری از افشای وجود حساب،
-     * در صورت نبودن ایمیل نیز همان جریان پاسخ را حفظ می‌کنیم.
-     *
-     * کد خام فقط برای ارسال ایمیل استفاده می‌شود
-     * و هرگز به صورت خام در دیتابیس ذخیره نمی‌شود.
-     */
     public function createPasswordResetCode(
         string $email
     ): string {
         $email = strtolower(trim($email));
 
-        $rateLimitKey = $this->passwordResetRequestRateLimitKey(
-            $email
-        );
+        $user = User::where('email', $email)->first();
 
-        if (
-            RateLimiter::tooManyAttempts(
-                $rateLimitKey,
-                self::PASSWORD_RESET_REQUEST_MAX_ATTEMPTS
-            )
-        ) {
+        if (!$user) {
             throw ValidationException::withMessages([
                 'email' => [
-                    'تعداد درخواست‌های بازیابی بیش از حد مجاز است. لطفاً بعداً دوباره تلاش کنید.'
+                    'حسابی با این ایمیل پیدا نشد.'
                 ],
             ]);
         }
 
-        RateLimiter::hit(
-            $rateLimitKey,
-            self::PASSWORD_RESET_RATE_LIMIT_SECONDS
-        );
-
         $code = (string) random_int(100000, 999999);
 
-        $user = User::where('email', $email)->first();
+        DB::table('password_reset_tokens')->updateOrInsert(
+            [
+                'email' => $email,
+            ],
+            [
+                'token' => Hash::make($code),
+                'created_at' => now(),
+            ]
+        );
 
-        if ($user) {
-            DB::table('password_reset_tokens')->updateOrInsert(
-                [
-                    'email' => $email,
-                ],
-                [
-                    'token' => Hash::make($code),
-                    'created_at' => now(),
-                ]
-            );
-        }
+        Mail::to($user->email)->send(
+            new PasswordResetCodeMail($code)
+        );
 
         return $code;
     }
 
-    /**
-     * بررسی کد ۶ رقمی بازیابی
-     */
     public function verifyPasswordResetCode(
         string $email,
         string $code
     ): bool {
         $email = strtolower(trim($email));
 
-        $rateLimitKey = $this->passwordResetVerifyRateLimitKey(
-            $email
-        );
-
-        if (
-            RateLimiter::tooManyAttempts(
-                $rateLimitKey,
-                self::PASSWORD_RESET_VERIFY_MAX_ATTEMPTS
-            )
-        ) {
-            return false;
-        }
-
         if (!preg_match('/^\d{6}$/', $code)) {
-            RateLimiter::hit(
-                $rateLimitKey,
-                self::PASSWORD_RESET_RATE_LIMIT_SECONDS
-            );
-
             return false;
         }
 
@@ -282,11 +217,6 @@ class AuthService
             ->first();
 
         if (!$reset || !$reset->created_at) {
-            RateLimiter::hit(
-                $rateLimitKey,
-                self::PASSWORD_RESET_RATE_LIMIT_SECONDS
-            );
-
             return false;
         }
 
@@ -303,32 +233,15 @@ class AuthService
                 ->where('email', $email)
                 ->delete();
 
-            RateLimiter::hit(
-                $rateLimitKey,
-                self::PASSWORD_RESET_RATE_LIMIT_SECONDS
-            );
-
             return false;
         }
 
-        $isValid = Hash::check(
+        return Hash::check(
             $code,
             $reset->token
         );
-
-        if (!$isValid) {
-            RateLimiter::hit(
-                $rateLimitKey,
-                self::PASSWORD_RESET_RATE_LIMIT_SECONDS
-            );
-        }
-
-        return $isValid;
     }
 
-    /**
-     * تغییر رمز عبور با کد بازیابی
-     */
     public function resetPassword(
         string $email,
         string $code,
@@ -353,8 +266,8 @@ class AuthService
 
         if (!$user) {
             throw ValidationException::withMessages([
-                'code' => [
-                    'کد بازیابی نادرست یا منقضی شده است.'
+                'email' => [
+                    'حسابی با این ایمیل پیدا نشد.'
                 ],
             ]);
         }
@@ -387,51 +300,13 @@ class AuthService
 
             $user->tokens()->delete();
         });
-
-        RateLimiter::clear(
-            $this->passwordResetRequestRateLimitKey($email)
-        );
-
-        RateLimiter::clear(
-            $this->passwordResetVerifyRateLimitKey($email)
-        );
     }
 
-    /**
-     * کلید محدودیت درخواست کد
-     */
-    private function passwordResetRequestRateLimitKey(
-        string $email
-    ): string {
-        return 'password-reset-request:' . hash(
-            'sha256',
-            $email
-        );
-    }
-
-    /**
-     * کلید محدودیت بررسی کد
-     */
-    private function passwordResetVerifyRateLimitKey(
-        string $email
-    ): string {
-        return 'password-reset-verify:' . hash(
-            'sha256',
-            $email
-        );
-    }
-
-    /**
-     * خروج از دستگاه فعلی
-     */
     public function logout(User $user): void
     {
         $user->currentAccessToken()?->delete();
     }
 
-    /**
-     * خروج از تمام دستگاه‌ها
-     */
     public function logoutAll(User $user): void
     {
         $user->tokens()->delete();
