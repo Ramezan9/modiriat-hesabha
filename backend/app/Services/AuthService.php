@@ -7,11 +7,18 @@ use App\Repositories\UserRepository;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
 class AuthService
 {
     private const PASSWORD_RESET_CODE_EXPIRATION_MINUTES = 10;
+
+    private const PASSWORD_RESET_REQUEST_MAX_ATTEMPTS = 5;
+
+    private const PASSWORD_RESET_VERIFY_MAX_ATTEMPTS = 10;
+
+    private const PASSWORD_RESET_RATE_LIMIT_SECONDS = 600;
 
     public function __construct(
         protected UserRepository $users
@@ -186,33 +193,55 @@ class AuthService
 
     /**
      * ایجاد کد ۶ رقمی بازیابی رمز عبور
+     *
+     * برای جلوگیری از افشای وجود حساب،
+     * در صورت نبودن ایمیل نیز همان جریان پاسخ را حفظ می‌کنیم.
+     *
+     * کد خام فقط برای ارسال ایمیل استفاده می‌شود
+     * و هرگز به صورت خام در دیتابیس ذخیره نمی‌شود.
      */
     public function createPasswordResetCode(
         string $email
     ): string {
         $email = strtolower(trim($email));
 
-        $user = User::where('email', $email)->first();
+        $rateLimitKey = $this->passwordResetRequestRateLimitKey(
+            $email
+        );
 
-        if (!$user) {
+        if (
+            RateLimiter::tooManyAttempts(
+                $rateLimitKey,
+                self::PASSWORD_RESET_REQUEST_MAX_ATTEMPTS
+            )
+        ) {
             throw ValidationException::withMessages([
                 'email' => [
-                    'حسابی با این ایمیل پیدا نشد.'
+                    'تعداد درخواست‌های بازیابی بیش از حد مجاز است. لطفاً بعداً دوباره تلاش کنید.'
                 ],
             ]);
         }
 
+        RateLimiter::hit(
+            $rateLimitKey,
+            self::PASSWORD_RESET_RATE_LIMIT_SECONDS
+        );
+
         $code = (string) random_int(100000, 999999);
 
-        DB::table('password_reset_tokens')->updateOrInsert(
-            [
-                'email' => $email,
-            ],
-            [
-                'token' => Hash::make($code),
-                'created_at' => now(),
-            ]
-        );
+        $user = User::where('email', $email)->first();
+
+        if ($user) {
+            DB::table('password_reset_tokens')->updateOrInsert(
+                [
+                    'email' => $email,
+                ],
+                [
+                    'token' => Hash::make($code),
+                    'created_at' => now(),
+                ]
+            );
+        }
 
         return $code;
     }
@@ -226,7 +255,25 @@ class AuthService
     ): bool {
         $email = strtolower(trim($email));
 
+        $rateLimitKey = $this->passwordResetVerifyRateLimitKey(
+            $email
+        );
+
+        if (
+            RateLimiter::tooManyAttempts(
+                $rateLimitKey,
+                self::PASSWORD_RESET_VERIFY_MAX_ATTEMPTS
+            )
+        ) {
+            return false;
+        }
+
         if (!preg_match('/^\d{6}$/', $code)) {
+            RateLimiter::hit(
+                $rateLimitKey,
+                self::PASSWORD_RESET_RATE_LIMIT_SECONDS
+            );
+
             return false;
         }
 
@@ -235,6 +282,11 @@ class AuthService
             ->first();
 
         if (!$reset || !$reset->created_at) {
+            RateLimiter::hit(
+                $rateLimitKey,
+                self::PASSWORD_RESET_RATE_LIMIT_SECONDS
+            );
+
             return false;
         }
 
@@ -251,13 +303,27 @@ class AuthService
                 ->where('email', $email)
                 ->delete();
 
+            RateLimiter::hit(
+                $rateLimitKey,
+                self::PASSWORD_RESET_RATE_LIMIT_SECONDS
+            );
+
             return false;
         }
 
-        return Hash::check(
+        $isValid = Hash::check(
             $code,
             $reset->token
         );
+
+        if (!$isValid) {
+            RateLimiter::hit(
+                $rateLimitKey,
+                self::PASSWORD_RESET_RATE_LIMIT_SECONDS
+            );
+        }
+
+        return $isValid;
     }
 
     /**
@@ -287,8 +353,8 @@ class AuthService
 
         if (!$user) {
             throw ValidationException::withMessages([
-                'email' => [
-                    'حسابی با این ایمیل پیدا نشد.'
+                'code' => [
+                    'کد بازیابی نادرست یا منقضی شده است.'
                 ],
             ]);
         }
@@ -321,6 +387,38 @@ class AuthService
 
             $user->tokens()->delete();
         });
+
+        RateLimiter::clear(
+            $this->passwordResetRequestRateLimitKey($email)
+        );
+
+        RateLimiter::clear(
+            $this->passwordResetVerifyRateLimitKey($email)
+        );
+    }
+
+    /**
+     * کلید محدودیت درخواست کد
+     */
+    private function passwordResetRequestRateLimitKey(
+        string $email
+    ): string {
+        return 'password-reset-request:' . hash(
+            'sha256',
+            $email
+        );
+    }
+
+    /**
+     * کلید محدودیت بررسی کد
+     */
+    private function passwordResetVerifyRateLimitKey(
+        string $email
+    ): string {
+        return 'password-reset-verify:' . hash(
+            'sha256',
+            $email
+        );
     }
 
     /**
