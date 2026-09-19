@@ -14,7 +14,6 @@ class ModiriatHesabhaApp extends StatelessWidget {
       title: 'مدیریت حساب‌ها',
       theme: ThemeData(
         useMaterial3: true,
-        fontFamily: 'sans',
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF1565C0),
         ),
@@ -58,6 +57,7 @@ class HomePage extends StatelessWidget {
           child: Column(
             children: [
               _buildAnnouncementCard(),
+
               const SizedBox(height: 16),
 
               Row(
@@ -192,6 +192,7 @@ class HomePage extends StatelessWidget {
                         value: '0',
                         icon: Icons.arrow_upward_rounded,
                       ),
+                    ),
                   ],
                 ),
               ),
