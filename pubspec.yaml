@@ -13,7 +13,7 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
-  # ذخیره‌سازی دائمی و آفلاین اطلاعات روی گوشی
+  hive_io: ^3.4.0
   hive_flutter_io: ^3.4.0
 
 dev_dependencies:
