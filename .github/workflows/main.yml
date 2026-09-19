@@ -7,7 +7,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -26,6 +26,17 @@ jobs:
         run: |
           if [ ! -f pubspec.yaml ]; then
             flutter create --project-name modiriat_hesabha --platforms=android .
+          fi
+
+      - name: ذخیره فایل‌های Flutter در GitHub
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "ایجاد پروژه Flutter"
+            git push
           fi
 
       - name: نصب وابستگی‌ها
